@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payload Control Dashboard</title>
+    <style>
+        :root {
+            --primary-color: #00ffea;
+            --bg-color: #0b101a;
+            --panel-bg: #151e2e;
+            --text-color: #e0e0e0;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .dashboard {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--primary-color);
+            border-radius: 8px;
+            padding: 30px;
+            width: 500px;
+            box-shadow: 0 0 20px rgba(0, 255, 234, 0.1);
+        }
+        h2 {
+            text-align: center;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 0;
+            border-bottom: 1px solid #334;
+            padding-bottom: 15px;
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #8a9bb5;
+            font-size: 0.9em;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #0b101a;
+            border: 1px solid #334;
+            color: var(--primary-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+        .btn-container {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            background-color: transparent;
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 4px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            font-family: 'Courier New', Courier, monospace;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            background-color: var(--primary-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px var(--primary-color);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        #image-container {
+            margin-top: 20px;
+            text-align: center;
+            border: 1px solid #334;
+            border-radius: 4px;
+            padding: 10px;
+            background-color: #05080f;
+            display: none; /* Initially hidden */
+        }
+        #latest-image {
+            max-width: 100%;
+            max-height: 300px;
+            border: 1px solid var(--primary-color);
+        }
+        #status-log {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #05080f;
+            border: 1px solid #2a3547;
+            border-radius: 4px;
+            height: 100px;
+            overflow-y: auto;
+            font-size: 0.85em;
+            color: #a0b0c0;
+        }
+        .log-entry { margin-bottom: 5px; }
+        .log-time { color: #5a7b95; margin-right: 10px; }
+        .log-success { color: #00ffea; }
+        .log-error { color: #ff3366; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <h2>Payload Comm-Link</h2>
+    
+    <div class="control-group">
+        <label for="esp-ip">Main Controller IP Address (e.g., 192.168.1.20)</label>
+        <input type="text" id="esp-ip" placeholder="192.168.1.xx">
+    </div>
+
+    <div class="control-group">
+        <label for="laptop-ip">Laptop IP Address (for image display, e.g., 192.168.1.10)</label>
+        <input type="text" id="laptop-ip" placeholder="192.168.1.xx">
+    </div>
+
+    <div class="btn-container">
+        <button onclick="sendCommand('capture')">📸 Capture</button>
+        <button onclick="sendCommand('send')">📡 Send Image</button>
+    </div>
+
+    <div id="image-container">
+        <label>Latest Received Image:</label>
+        <img id="latest-image" src="" alt="Latest Capture">
+    </div>
+
+    <div id="status-log">
+        <div class="log-entry"><span class="log-time">System:</span> Ready to transmit.</div>
+    </div>
+</div>
+
+<script>
+    function updateLog(message, type = 'normal') {
+        const logDiv = document.getElementById('status-log');
+        const now = new Date();
+        const timeString = now.toLocaleTimeString();
+        
+        let colorClass = '';
+        if(type === 'success') colorClass = 'log-success';
+        if(type === 'error') colorClass = 'log-error';
+
+        const newLog = document.createElement('div');
+        newLog.className = 'log-entry';
+        newLog.innerHTML = `<span class="log-time">[${timeString}]</span> <span class="${colorClass}">${message}</span>`;
+        
+        logDiv.appendChild(newLog);
+        logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function sendCommand(action) {
+        const espIp = document.getElementById('esp-ip').value.trim();
+        const laptopIp = document.getElementById('laptop-ip').value.trim();
+        
+        if (!espIp || !laptopIp) {
+            updateLog("Error: Both IP Addresses are required.", "error");
+            return;
+        }
+
+        const url = `http://${espIp}/${action}`;
+        updateLog(`Transmitting [${action.toUpperCase()}] to ${espIp}...`);
+
+        fetch(url, { mode: 'no-cors' })
+            .then(response => {
+                updateLog(`Command [${action.toUpperCase()}] successfully transmitted.`, "success");
+                if (action === 'send') {
+                    // ပုံပို့ပြီးရင် ခဏစောင့်ပြီး ပုံကို reload လုပ်မယ် (upload time အတွက် ခန့်မှန်း ၁ စက္ကန့်)
+                    updateLog("Waiting for image upload... then will update display.");
+                    setTimeout(() => updateImageDisplay(laptopIp), 1500); 
+                }
+            })
+            .catch(error => {
+                updateLog(`Transmission Failed. Check connection.`, "error");
+                console.error("Error:", error);
+            });
+    }
+
+    function updateImageDisplay(laptopIp) {
+        const image = document.getElementById('latest-image');
+        const container = document.getElementById('image-container');
+        // နောက်ဆုံးပုံကို ယူမယ့် link ကို timestamp ထည့်ပြီး cache မလုပ်အောင် reload လုပ်မယ်
+        const latestImageUrl = `http://${laptopIp}:5000/latest_image?t=${new Date().getTime()}`;
+        
+        image.src = latestImageUrl;
+        image.style.display = 'inline-block'; // ပုံပြမယ်
+        container.style.display = 'block'; // container ပြမယ်
+        updateLog("Image display updated with latest capture.");
+    }
+</script>
+
+</body>
+</html>
